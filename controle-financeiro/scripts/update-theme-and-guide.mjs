@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const path='app/finance-app.tsx';let s=fs.readFileSync(path,'utf8');
+function replace(a,b){if(!s.includes(a))throw Error('Expected source not found: '+a.slice(0,80));s=s.replace(a,b);}
+replace("import {registerFinanceTools} from '../lib/webmcp';","import {registerFinanceTools} from '../lib/webmcp';\nimport ThemeToggle from './theme-toggle';");
+replace('<div className="top-actions"><span','<div className="top-actions"><ThemeToggle/><span');
+replace("{tab==='reserve'&&<><div className=\"metrics\">",`{tab==='reserve'&&<><section className="panel investment-guide"><div><h2>Onde registrar seus investimentos</h2><p><strong>Novo aporte:</strong> registre o valor aplicado neste mês. Ele entra nos aportes e é descontado do caixa.</p><p><strong>Total já investido:</strong> informe seu patrimônio atual em <a href="#investment-settings">Ajustar metas</a>. Esse valor acompanha as metas e não é descontado novamente do caixa.</p></div><div className="investment-guide-actions"><button className="primary" disabled={saving} onClick={()=>newEntry('investment')}><Plus size={17}/>Adicionar investimento</button><button className="outline" disabled={saving} onClick={()=>newEntry('reserve')}><PiggyBank size={17}/>Depositar na reserva</button></div></section><div className="metrics">`);
+replace('<section className="panel compact"><h2>{mode===\'goals\'?\'Ajustar metas\'', '<section id={mode===\'goals\'?\'investment-settings\':undefined} className="panel compact"><h2>{mode===\'goals\'?\'Ajustar metas\'');
+replace('Patrimônio gerador de renda (R$)<input required', 'Total já investido / patrimônio atual (R$)<small>Saldo atual dos investimentos que geram renda, sem a reserva de emergência. Atualize este valor para acompanhar as metas; aportes e rendimentos não alteram este campo automaticamente.</small><input required');
+replace('<label>Valor (R$)<input required', '<label>{draft.kind===\'investment\'?\'Valor do aporte (R$)\':\'Valor (R$)\'}{draft.kind===\'investment\'&&<small>Informe quanto você está aplicando neste lançamento, não o saldo total que já possui.</small>}<input required');
+fs.writeFileSync(path,s);

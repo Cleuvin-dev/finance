@@ -1,0 +1,10 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';import ts from 'typescript';
+const js=ts.transpileModule(fs.readFileSync('lib/finance.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {savedMovement}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const entry=(kind,cents)=>({kind,cents,month:10,year:2026});
+assert.equal(savedMovement([entry('investment',9800)]),9800);assert.equal(100000-savedMovement([entry('investment',9800)]),90200);
+assert.equal(savedMovement([entry('investment',9800),entry('reserve',2000)]),11800);
+assert.equal(savedMovement([entry('investment',9800),entry('reserve',2000),entry('investment_withdrawal',1000),entry('reserve_withdrawal',500)]),10300);
+assert.equal(savedMovement([entry('income',10000),entry('fixed',2000)]),0);
+assert.equal(savedMovement([entry('investment_withdrawal',500)]),-500);
+console.log('OK: metas mensais incluem investimento e reserva, descontam resgates e ignoram receitas/despesas.');

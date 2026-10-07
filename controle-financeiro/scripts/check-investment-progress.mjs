@@ -1,0 +1,12 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';import ts from 'typescript';
+const js=ts.transpileModule(fs.readFileSync('lib/finance.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {investmentBalance,updateEntry}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const data=JSON.parse(fs.readFileSync('lib/initial-data.json','utf8'));
+const r={id:'test',month:10,kind:'investment',description:'Teste',category:'',date:'2026-10-06',cents:10000,paid:true,bank:''};
+assert.equal(investmentBalance(updateEntry(data,r)).total,10000);
+assert.equal(investmentBalance(updateEntry(updateEntry(data,r),{...r,cents:25000})).total,25000);
+assert.equal(investmentBalance(updateEntry(data,{...r,kind:'reserve'})).total,0);
+assert.equal(investmentBalance({...data,wealthCents:30000,records:[r]}).total,40000);
+assert.equal(investmentBalance({...data,records:[]}).total,0);
+assert.equal(data.records.filter(r=>r.kind==='reserve').length,0);
+console.log('OK: investment goals recalculate on creation, editing and removal; reserve remains separate.');

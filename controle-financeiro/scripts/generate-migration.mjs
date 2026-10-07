@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import * as schema from '../db/schema.ts';
+import {generateSQLiteDrizzleJson,generateSQLiteMigration} from 'drizzle-kit/api';
+const journal=JSON.parse(fs.readFileSync('drizzle/meta/_journal.json','utf8'));
+if(journal.entries.length)throw Error('Migration already generated; preserve it.');
+const before=await generateSQLiteDrizzleJson({});
+const after=await generateSQLiteDrizzleJson(schema,before.id);
+const sql=await generateSQLiteMigration(before,after);
+fs.writeFileSync('drizzle/0000_financial_state.sql',sql.join('\n--> statement-breakpoint\n')+'\n');
+fs.writeFileSync('drizzle/meta/0000_snapshot.json',JSON.stringify(after,null,2));
+journal.entries.push({idx:0,version:'6',when:Date.now(),tag:'0000_financial_state',breakpoints:true});
+fs.writeFileSync('drizzle/meta/_journal.json',JSON.stringify(journal,null,2));
+console.log(sql.join('\n'));

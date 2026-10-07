@@ -1,0 +1,19 @@
+# Local tools and generated files
+.claude/
+.agents/
+.codex/
+**/.git-local-backup/
+**/__pycache__/
+*.py[cod]
+**/node_modules/
+**/build/
+**/local-dist/
+**/tsconfig.tsbuildinfo
+**/.env*
+**/*.sqlite3*
+**/backup-*.sqlite3*
+
+# Original financial records and duplicate distribution packages
+*.xlsx
+*.zip
+controle-financeiro/Controle-Financeiro/

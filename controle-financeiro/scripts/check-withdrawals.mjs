@@ -1,0 +1,11 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';import ts from 'typescript';
+const js=ts.transpileModule(fs.readFileSync('lib/finance.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+const {totals,investmentBalance,reserveBalance,updateEntry}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const initial=JSON.parse(fs.readFileSync('lib/initial-data.json','utf8'));
+const entry=(id,kind,cents)=>({id,kind,cents,month:10,description:'Teste',category:'',date:'2026-10-06',paid:true,bank:''});
+let s={...initial,records:[entry('i','investment',10000),entry('r','reserve',20000),entry('iw','investment_withdrawal',3000),entry('rw','reserve_withdrawal',5000)]};
+assert.equal(investmentBalance(s).total,7000);assert.equal(reserveBalance(s.records).total,15000);assert.equal(investmentBalance(s).total+reserveBalance(s.records).total,22000);
+assert.equal(totals(s.records).income,0);assert.equal(totals(s.records).invested,30000);assert.equal(totals(s.records).withdrawn,8000);assert.equal(totals(s.records).cash,-22000);
+s=updateEntry(s,entry('iw','investment_withdrawal',4000));assert.equal(investmentBalance(s).total,6000);assert.equal(totals(s.records).withdrawn,9000);
+s.records=s.records.filter(r=>r.id!=='rw');assert.equal(reserveBalance(s.records).total,20000);
+console.log('OK: separate balances, total accumulation, cash returned, withdrawals excluded from income, edit and removal.');
