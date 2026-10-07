@@ -154,6 +154,6 @@ O aplicativo amplia o controle original com edição de lançamentos, parcelas e
 
 No aplicativo, reserva e investimentos possuem movimentos de entrada e saída. O caixa considera recebimentos menos despesas pagas e aportes, acrescido das retiradas. Há também um cálculo de disponibilidade que desconta todas as despesas, inclusive pendentes. Essas regras adicionais estão implementadas em `lib/finance.ts`.
 
-A importação não cria sincronização automática entre Excel e aplicativo. Os lançamentos atuais ficam no banco local, que deve ser preservado separadamente. A integração de produção com Vercel/D1 e o login com isolamento por usuário permanecem pendentes conforme a documentação do projeto.
+A importação não cria sincronização automática entre Excel e aplicativo. Os lançamentos atuais ficam no banco local, que deve ser preservado separadamente. O caminho de deploy na Vercel utiliza Next.js e acesso ao D1 por HTTP, conforme [`controle-financeiro/VERCEL.md`](controle-financeiro/VERCEL.md). A configuração do banco remoto, a migração dos dados atuais e o login com isolamento por usuário permanecem pendentes.
 
 Para detalhes sobre operação, persistência e desenvolvimento, consulte [`DOCUMENTACAO-E-RETOMADA.md`](DOCUMENTACAO-E-RETOMADA.md) e [`controle-financeiro/COMO-USAR.md`](controle-financeiro/COMO-USAR.md).
