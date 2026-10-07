@@ -1,5 +1,7 @@
 # Controle financeiro — documentação e ponto de retomada
 
+> Atualização de 7 de outubro de 2026: o caminho atual usa Next.js na Vercel e Supabase Auth/PostgreSQL, com login e estado por usuário. Consulte [`controle-financeiro/VERCEL.md`](controle-financeiro/VERCEL.md) para aplicar a migração SQL, configurar as variáveis e os redirecionamentos. As seções sobre D1 e ausência de login abaixo descrevem o estado histórico anterior. Os dados locais existentes não foram migrados automaticamente.
+
 Atualizado em 6 de outubro de 2026. Este documento registra o trabalho realizado, o funcionamento atual e o que falta para publicar o aplicativo. Os valores mencionados são exemplos ou registros históricos; o banco local contém os dados atuais e pode mudar durante o uso.
 
 ## 1. Situação atual

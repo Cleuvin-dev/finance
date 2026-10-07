@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 // Isolate the server-only module with fake credentials and an HTTP stub.
-const source = readFileSync(new URL('../lib/storage.ts', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../lib/storage-d1.ts', import.meta.url), 'utf8')
   .replace("import 'server-only';", '');
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

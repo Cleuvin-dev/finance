@@ -150,10 +150,12 @@ O aplicativo amplia o controle original com edição de lançamentos, parcelas e
 | Compilação local | Vite |
 | Servidor local | Python, em `servidor.py` |
 | Persistência local | SQLite, em `dados-financeiros.sqlite3` |
-| Estrutura preparada para nuvem | Vinext, Cloudflare Workers/D1 e Drizzle |
+| Site online | Next.js na Vercel |
+| Login e banco online | Supabase Auth e PostgreSQL com RLS |
+| Estrutura anterior de Cloudflare | Vinext/Workers, adaptador D1 arquivado e migração Drizzle |
 
 No aplicativo, reserva e investimentos possuem movimentos de entrada e saída. O caixa considera recebimentos menos despesas pagas e aportes, acrescido das retiradas. Há também um cálculo de disponibilidade que desconta todas as despesas, inclusive pendentes. Essas regras adicionais estão implementadas em `lib/finance.ts`.
 
-A importação não cria sincronização automática entre Excel e aplicativo. Os lançamentos atuais ficam no banco local, que deve ser preservado separadamente. O caminho de deploy na Vercel utiliza Next.js e acesso ao D1 por HTTP, conforme [`controle-financeiro/VERCEL.md`](controle-financeiro/VERCEL.md). A configuração do banco remoto, a migração dos dados atuais e o login com isolamento por usuário permanecem pendentes.
+A importação não cria sincronização automática entre Excel e aplicativo. Os lançamentos atuais ficam no banco local, que deve ser preservado separadamente. A versão online usa Next.js na Vercel e Supabase para autenticação e persistência individual, conforme [`controle-financeiro/VERCEL.md`](controle-financeiro/VERCEL.md). O código inclui login, cadastro, recuperação de senha e verificação de sessão no servidor. A migração SQL cria uma conta financeira por usuário com políticas RLS. A aplicação dessa migração no projeto remoto e a configuração das variáveis e redirecionamentos são necessárias antes de usar a versão online. A migração dos dados locais existentes permanece separada.
 
 Para detalhes sobre operação, persistência e desenvolvimento, consulte [`DOCUMENTACAO-E-RETOMADA.md`](DOCUMENTACAO-E-RETOMADA.md) e [`controle-financeiro/COMO-USAR.md`](controle-financeiro/COMO-USAR.md).

@@ -1,44 +1,41 @@
 import 'server-only';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { emptyFinance } from './empty-finance';
+import type { Finance } from './finance';
 
-type QueryResult = {
-  success: boolean;
-  results: Record<string, unknown>[];
-  meta: { changes: number };
-};
+type FinancialRow = { payload: Finance; version: number; updated_at: string };
 
-// Vercel runs Node.js, so D1 is accessed through its authenticated HTTP API.
-// Configuration is checked on each request, without contacting D1 during build.
-export function storage() {
-  const account = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const database = process.env.CLOUDFLARE_D1_DATABASE_ID;
-  const token = process.env.CLOUDFLARE_API_TOKEN;
-  if (!account || !database || !token) throw new Error('D1 configuration missing');
-  const url = `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/d1/database/${encodeURIComponent(database)}/query`;
+export class FinancialStorageError extends Error {
+  constructor(public code: string | undefined, message: string) { super(message); }
+}
 
-  async function query(sql: string, params: unknown[]): Promise<QueryResult> {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql, params }),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!response.ok) throw new Error(`D1 request failed (${response.status})`);
-    const body = await response.json() as { success: boolean; result?: QueryResult[] };
-    const result = body.result?.[0];
-    if (!body.success || !result?.success) throw new Error('D1 query failed');
-    return result;
+function check(error: { code?: string; message: string } | null) {
+  if (error) throw new FinancialStorageError(error.code, error.message);
+}
+
+// The client carries the verified user's JWT. RLS enforces ownership in Postgres.
+export async function readFinance(client: SupabaseClient, userId: string): Promise<FinancialRow> {
+  let result = await client.from('financial_accounts')
+    .select('payload,version,updated_at').eq('user_id', userId).maybeSingle();
+  check(result.error);
+  if (!result.data) {
+    const created = await client.from('financial_accounts').upsert(
+      { user_id: userId, payload: emptyFinance() },
+      { onConflict: 'user_id', ignoreDuplicates: true },
+    );
+    check(created.error);
+    result = await client.from('financial_accounts')
+      .select('payload,version,updated_at').eq('user_id', userId).single();
+    check(result.error);
   }
+  if (!result.data) throw new FinancialStorageError(undefined, 'Financial account unavailable');
+  return result.data as FinancialRow;
+}
 
-  function statement(sql: string, params: unknown[] = []) {
-    return {
-      bind(...values: unknown[]) { return statement(sql, values); },
-      run() { return query(sql, params); },
-      async first<T>() {
-        const result = await query(sql, params);
-        return (result.results[0] as T | undefined) ?? null;
-      },
-    };
-  }
-  return { prepare: (sql: string) => statement(sql) };
+export async function writeFinance(client: SupabaseClient, userId: string, state: Finance, version: number) {
+  const result = await client.from('financial_accounts')
+    .update({ payload: state }).eq('user_id', userId).eq('version', version)
+    .select('version').maybeSingle();
+  check(result.error);
+  return result.data?.version as number | undefined;
 }

@@ -1,10 +1,62 @@
-import initial from '../../../lib/initial-data.json';
-import {storage} from '../../../lib/storage';
-import {z} from 'zod';
-import {investmentBalance,reserveBalance} from '../../../lib/finance';
+import { serverSupabase } from '../../../lib/supabase/server';
+import { readFinance, writeFinance, FinancialStorageError } from '../../../lib/storage';
+import { financeSchema } from '../../../lib/finance-schema';
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-const entry=z.object({id:z.string().max(100),month:z.number().int().min(1).max(12),kind:z.enum(['fixed','variable','card','income','investment','reserve','investment_withdrawal','reserve_withdrawal']),description:z.string().min(1).max(200),category:z.string().max(100),date:z.string().refine(v=>v===''||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))), 'Data inválida'),cents:z.number().int().min(0).max(1e12),paid:z.boolean(),bank:z.string().max(100),source:z.string().optional(),recurringFrom:z.string().optional(),dateApproximate:z.boolean().optional(),year:z.number().int().min(2000).max(2100).optional(),installmentGroup:z.string().max(100).optional(),installmentNumber:z.number().int().min(1).max(120).optional(),installmentCount:z.number().int().min(1).max(120).optional()});
-const finance=z.object({year:z.number().int().min(2000).max(2100),records:z.array(entry).max(10000),categories:z.array(z.string().min(1).max(100)).max(100),banks:z.array(z.string().min(1).max(100)).max(100),cards:z.array(z.string().min(1).max(100)).max(100),monthlyTargets:z.array(z.number().int().min(0).max(1e12)).length(12),allocation:z.array(z.number().min(0).max(100)).length(3).refine(a=>Math.abs(a.reduce((a,b)=>a+b,0)-100)<.01),essentialMonthlyCents:z.number().int().min(0).max(1e12),wealthCents:z.number().int().min(0).max(1e12),wealthGoals:z.array(z.number().int().positive().max(1e12)).max(20),yearMonthStates:z.record(z.enum(['realizado','previsto'])).optional(),monthStates:z.array(z.enum(['realizado','previsto'])).length(12),sourceSheets:z.array(z.string()).max(100),help:z.array(z.string()).max(200)}).refine(s=>new Set(s.records.map(r=>r.id)).size===s.records.length,'IDs duplicados').refine(s=>investmentBalance(s).total>=0 && reserveBalance(s.records).total>=0,'A retirada não pode superar o saldo disponível.');
-export async function GET(){try{const db=storage();await db.prepare('INSERT OR IGNORE INTO financial_state(id,payload,version,updated_at) VALUES(?,?,1,?)').bind('main',JSON.stringify(initial),new Date().toISOString()).run();const row=await db.prepare('SELECT payload,version,updated_at FROM financial_state WHERE id=?').bind('main').first<{payload:string;version:number;updated_at:string}>();return Response.json({state:JSON.parse(row!.payload),version:row!.version,updatedAt:row!.updated_at},{headers:{'Cache-Control':'no-store'}});}catch(e){console.error(e);return Response.json({error:'Não foi possível carregar os dados. Tente novamente.'},{status:503});}}
-export async function PUT(request:Request){try{if(request.headers.get('origin')&&request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Origem inválida'},{status:403});if(Number(request.headers.get('content-length')||0)>2000000)return Response.json({error:'Arquivo muito grande'},{status:413});const body=await request.json() as {state:unknown;version:number};const parsed=finance.safeParse(body.state);if(!parsed.success||!Number.isInteger(body.version))return Response.json({error:'Revise os valores informados.'},{status:400});const result=await storage().prepare('UPDATE financial_state SET payload=?,version=version+1,updated_at=? WHERE id=? AND version=?').bind(JSON.stringify(parsed.data),new Date().toISOString(),'main',body.version).run();if(!result.meta.changes)return Response.json({error:'Os dados foram alterados em outra janela. Recarregue antes de salvar.'},{status:409});return Response.json({version:body.version+1});}catch(e){console.error(e);return Response.json({error:'Não foi possível salvar. Seus dados continuam na tela; tente novamente.'},{status:503});}}
+const MAX_BYTES = 2_000_000;
+
+function json(body: unknown, status = 200) {
+  return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
+}
+
+function unavailable(error: unknown) {
+  // Keep provider details in server logs, never return financial data or tokens.
+  console.error('Financial storage unavailable', error instanceof FinancialStorageError
+    ? { code: error.code, message: error.message } : error instanceof Error ? error.message : 'Unknown error');
+  const missingTable = error instanceof FinancialStorageError && ['PGRST205', '42P01'].includes(error.code ?? '');
+  return json({ error: missingTable
+    ? 'O banco do aplicativo ainda não foi preparado. Entre em contato com o responsável.'
+    : 'Não foi possível acessar seus dados. Tente novamente em instantes.' }, 503);
+}
+
+export async function GET() {
+  try {
+    const client = await serverSupabase();
+    const { data, error } = await client.auth.getUser();
+    if (error || !data.user) return json({ error: 'Sua sessão expirou. Entre novamente.' }, 401);
+    const row = await readFinance(client, data.user.id);
+    const state = financeSchema.parse(row.payload);
+    return json({ state, version: row.version, updatedAt: row.updated_at, accountId: data.user.id });
+  } catch (error) { return unavailable(error); }
+}
+
+export async function PUT(request: Request) {
+  try {
+    // Cookie-authenticated writes must originate from this application.
+    if (request.headers.get('origin') !== new URL(request.url).origin) {
+      return json({ error: 'Origem inválida.' }, 403);
+    }
+    const client = await serverSupabase();
+    const { data, error } = await client.auth.getUser();
+    if (error || !data.user) return json({ error: 'Sua sessão expirou. Entre novamente.' }, 401);
+    if (Number(request.headers.get('content-length') || 0) > MAX_BYTES) {
+      return json({ error: 'Arquivo muito grande.' }, 413);
+    }
+    const raw = await request.text();
+    if (new TextEncoder().encode(raw).length > MAX_BYTES) return json({ error: 'Arquivo muito grande.' }, 413);
+    let body: { state?: unknown; version?: number; accountId?: string };
+    try { body = JSON.parse(raw); } catch { return json({ error: 'Dados inválidos.' }, 400); }
+    if (!body || typeof body !== 'object') return json({ error: 'Dados inválidos.' }, 400);
+    // Prevent a stale tab from saving one account's state into a newly signed-in account.
+    // Ownership still comes only from the verified session, never from this hint.
+    if (body.accountId !== data.user.id) return json({ error: 'Sua conta mudou. Recarregue a página antes de salvar.' }, 401);
+    const parsed = financeSchema.safeParse(body.state);
+    if (!parsed.success || !Number.isSafeInteger(body.version) || (body.version ?? 0) < 1 || (body.version ?? 0) >= 2_147_483_647) {
+      return json({ error: 'Revise os valores informados.' }, 400);
+    }
+    const version = await writeFinance(client, data.user.id, parsed.data, body.version!);
+    if (version === undefined) return json({ error: 'Os dados foram alterados em outra janela. Recarregue antes de salvar.' }, 409);
+    return json({ version });
+  } catch (error) { return unavailable(error); }
+}
