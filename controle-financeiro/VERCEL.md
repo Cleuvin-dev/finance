@@ -2,13 +2,19 @@
 
 O aplicativo utiliza Next.js na Vercel, Supabase Auth para contas e PostgreSQL com Row Level Security (RLS) para separar os dados financeiros. A configuração anterior de D1 está arquivada em `lib/storage-d1.ts` e não é utilizada pela API atual. A versão Python/SQLite local continua independente.
 
+## Estado confirmado em 7 de outubro de 2026
+
+O site está publicado em <https://finance-mada.vercel.app>. O usuário configurou as variáveis públicas como **Config**, realizou o redeploy e confirmou login e gravação normal dos lançamentos. A raiz direciona para `/login`, e a API sem sessão retorna HTTP 401. A consulta anônima à tabela no Supabase foi recusada. O isolamento com dois usuários passou em PostgreSQL local de teste; a verificação manual com duas contas reais e a recuperação de senha em produção ainda estão pendentes.
+
+As seções seguintes documentam como reproduzir a configuração em outro ambiente e como verificar o atual. Não representam uma solicitação para recriar o projeto que já está funcionando.
+
 ## 1. Preparar o banco
 
 Projeto Supabase: `znkteksinhmfsaozaznj`.
 
 Abra o [SQL Editor do projeto](https://supabase.com/dashboard/project/znkteksinhmfsaozaznj/sql/new), copie o conteúdo de [`supabase/migrations/202610070001_financial_accounts.sql`](supabase/migrations/202610070001_financial_accounts.sql) e execute.
 
-A chave pública não possui permissão para executar migrações ou administrar o projeto. O SQL foi validado em PostgreSQL local de teste; isso não significa que já foi aplicado ao projeto remoto.
+A chave pública não possui permissão para executar migrações ou administrar o projeto. O agente validou o SQL em PostgreSQL local de teste, mas não o executou diretamente no painel remoto. Posteriormente, a tabela passou a recusar acesso anônimo e o usuário confirmou gravação normal pelo aplicativo. Não houve inspeção administrativa de todas as políticas do projeto remoto.
 
 ### Tabelas e atributos
 
@@ -78,7 +84,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://znkteksinhmfsaozaznj.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<chave pública do projeto>
 ```
 
-Use a chave `sb_publishable_...` fornecida pelo Supabase. Nenhuma chave administrativa ou `service_role` é necessária para o aplicativo. A chave pública é usada junto da sessão autenticada, e o banco aplica as políticas RLS.
+Use a chave `sb_publishable_...` fornecida pelo Supabase. Na Vercel, escolha o tipo **Config** para as duas variáveis e mantenha o prefixo `NEXT_PUBLIC_`. Esse prefixo é necessário para o cliente no navegador. Nenhuma chave administrativa ou `service_role` é necessária para o aplicativo. A chave pública é usada junto da sessão autenticada, e o banco aplica as políticas RLS.
 
 A configuração local fica em `.env.local`, que é ignorado pelo Git. Não publique credenciais administrativas.
 
@@ -92,7 +98,7 @@ Configure **Root Directory** como `controle-financeiro`. O `vercel.json` define 
 4. Saia e entre em uma segunda conta. O lançamento da primeira não deve aparecer.
 5. A recuperação de senha deve abrir `/nova-senha` após validar o link recebido.
 
-Os testes locais verificam as regras SQL com dois usuários em PostgreSQL, acessos sem sessão ou com sessão inválida, isolamento, gravações concorrentes e validação de valores. Não substituem a verificação das configurações remotas de autenticação, e-mail e banco.
+Os testes locais verificam as regras SQL com dois usuários em PostgreSQL, acessos sem sessão ou com sessão inválida, isolamento, gravações concorrentes e validação de valores. As telas de autenticação foram verificadas em Chrome, em desktop e celular, com respostas simuladas para evitar criar contas ou enviar e-mails reais. Não substituem a verificação das configurações remotas de autenticação, e-mail e banco. Os passos 1 e 3 têm evidência remota e confirmação do usuário; o teste manual de duas contas e a recuperação real continuam pendentes.
 
 ```powershell
 node scripts/check-supabase-storage.mjs

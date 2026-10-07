@@ -4,6 +4,12 @@ Este repositório contém um aplicativo de controle financeiro desenvolvido a pa
 
 Esta documentação descreve tecnicamente a planilha original e sua relação com o aplicativo. A versão analisada contém **22 abas, 3.614 células com fórmulas e quatro gráficos**. O arquivo Excel original não é versionado, conforme as regras do `.gitignore`.
 
+## Aplicativo online e documentação de retomada
+
+O site está disponível em **[finance-mada.vercel.app](https://finance-mada.vercel.app)**, com Next.js na Vercel, login pelo Supabase e controle financeiro por usuário. Em 7 de outubro de 2026, o usuário confirmou acesso e gravação normal dos lançamentos. A compilação, as telas de autenticação e o isolamento SQL com dois usuários foram verificados localmente. O teste manual com duas contas reais em produção e a migração dos dados antigos ainda estão pendentes.
+
+Consulte [`DOCUMENTACAO-E-RETOMADA.md`](DOCUMENTACAO-E-RETOMADA.md) para o histórico completo, as correções de deploy, os testes, os cuidados com os dados e o ponto exato de continuidade. O guia [`controle-financeiro/VERCEL.md`](controle-financeiro/VERCEL.md) registra as tabelas, as permissões e a configuração de autenticação e publicação.
+
 ## Estrutura da planilha
 
 | Aba | Responsabilidade |
@@ -156,6 +162,6 @@ O aplicativo amplia o controle original com edição de lançamentos, parcelas e
 
 No aplicativo, reserva e investimentos possuem movimentos de entrada e saída. O caixa considera recebimentos menos despesas pagas e aportes, acrescido das retiradas. Há também um cálculo de disponibilidade que desconta todas as despesas, inclusive pendentes. Essas regras adicionais estão implementadas em `lib/finance.ts`.
 
-A importação não cria sincronização automática entre Excel e aplicativo. Os lançamentos atuais ficam no banco local, que deve ser preservado separadamente. A versão online usa Next.js na Vercel e Supabase para autenticação e persistência individual, conforme [`controle-financeiro/VERCEL.md`](controle-financeiro/VERCEL.md). O código inclui login, cadastro, recuperação de senha e verificação de sessão no servidor. A migração SQL cria uma conta financeira por usuário com políticas RLS. A aplicação dessa migração no projeto remoto e a configuração das variáveis e redirecionamentos são necessárias antes de usar a versão online. A migração dos dados locais existentes permanece separada.
+A importação não cria sincronização automática entre Excel e aplicativo. Os lançamentos da versão local ficam no SQLite, enquanto os novos lançamentos online ficam no Supabase. A versão online usa Next.js na Vercel e Supabase para autenticação e persistência individual, conforme [`controle-financeiro/VERCEL.md`](controle-financeiro/VERCEL.md). O código inclui login, cadastro, recuperação de senha e verificação de sessão no servidor. A migração SQL define uma conta financeira por usuário com políticas RLS. O usuário já confirmou acesso e gravação em produção. A migração dos dados locais existentes permanece pendente e deve preservar os lançamentos online.
 
 Para detalhes sobre operação, persistência e desenvolvimento, consulte [`DOCUMENTACAO-E-RETOMADA.md`](DOCUMENTACAO-E-RETOMADA.md) e [`controle-financeiro/COMO-USAR.md`](controle-financeiro/COMO-USAR.md).
